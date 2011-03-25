@@ -1,0 +1,10 @@
+/*
+Theme Name:     MCTeam.org
+Theme URI:      http://mcteam.org/
+Description:    This is a child theme for the Twenty Ten theme 
+Author:         Olof Larsson
+Author URI:     http://oloflarsson.se
+Template:       twentyten
+*/
+
+@import url("../twentyten/style.css");
