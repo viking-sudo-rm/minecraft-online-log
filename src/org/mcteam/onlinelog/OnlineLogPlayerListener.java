@@ -7,12 +7,12 @@ public class OnlineLogPlayerListener extends PlayerListener {
 	
 	@Override
 	public void onPlayerJoin(PlayerEvent event) {
-		OnlineLog.log(event.getPlayer().getName()+" join");
+		OnlineLog.doOnlineLog(OnlineLog.instance.getServer().getOnlinePlayers().length);
 	}
 	
 	@Override
 	public void onPlayerQuit(PlayerEvent event) {
-		OnlineLog.log(event.getPlayer().getName()+" quit");
+		OnlineLog.doOnlineLog(OnlineLog.instance.getServer().getOnlinePlayers().length);
 	}
 
 }
