@@ -7,7 +7,7 @@ You can use this data to create fancy charts on your web page (:
 One row will be written to the database table each time the online players change.<br/>
 For example when someone logs in or logs out.
 
-[Take a look at this live example](http://mcteam.org/statistics)
+<b>[Take a look at this live example](http://mcteam.org/statistics)</b>
 
 How to install
 ----------
