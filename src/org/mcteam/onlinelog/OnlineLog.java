@@ -1,50 +1,55 @@
 package org.mcteam.onlinelog;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.config.Configuration;
 
 public class OnlineLog extends JavaPlugin {
-	
 	public static OnlineLog instance; 
-	
 	private OnlineLogPlayerListener playerListener = new OnlineLogPlayerListener();
 	
-    public static String hostname;
-    public static String port;
-    public static String username;
-    public static String password;
-    public static String database;
-    public static String table;
-    
+	public static Map<String, String> dbSettings = new LinkedHashMap<String, String>();
+	public static File dbSettingsFile;
     public static Connection conn;
 	
 	public OnlineLog() {
 		instance = this;
+		dbSettings.put("hostname", "localhost");
+		dbSettings.put("port", "3306");
+		dbSettings.put("username", "root");
+		dbSettings.put("password", "");
+		dbSettings.put("database", "minecraft");
+		dbSettings.put("table", "onlinelog");
 	}
 	
 	@Override
 	public void onDisable() {
 		if (conn != null) {
-			OnlineLog.doOnlineLog(0);
+			OnlineLog.doOnlineLog(0, "");
 		}
 		log("Disabled");
 	}
 
 	@Override
 	public void onEnable() {
-		if (initDbConnection()) {
-			log("Database connection was established.");
+		if (init()) {
+			log("Enabled");
 		} else {
+			log("I failed to init and will now suicide :O");
 			getServer().getPluginManager().disablePlugin(this);
 			return;
 		}
@@ -55,18 +60,35 @@ public class OnlineLog extends JavaPlugin {
 		pm.registerEvent(Event.Type.PLAYER_QUIT, this.playerListener, Event.Priority.Normal, this);
 	}
 	
-	public boolean initDbConnection() {
-		// Check file exists!
-		File file = new File(getDataFolder(), "config.yml");
-		if ( ! file.exists()) {
-			log(Level.WARNING, "The file is missing: "+file);
-			return false;
+	public boolean init() {
+		// Where is the config file?
+		dbSettingsFile = new File(getDataFolder(), "config.yml");
+		
+		// Create default file if it does not exist
+		if ( ! dbSettingsFile.exists()) {
+			log("No conf.yml found. Creating default one.");
+			
+			// Ensure the data folder exists
+			getDataFolder().mkdir();
+			
+			String content = "";
+			for (Entry<String, String> setting : dbSettings.entrySet()) {
+				content += setting.getKey()+": '"+setting.getValue()+"'\n";
+			}
+			
+			// Write the conf.yml to disc
+			try {
+				DiscUtil.write(dbSettingsFile, content);
+			} catch (IOException e) {
+				e.printStackTrace();
+				return false;
+			}
 		}
 		
 		// Load Configuration
 		Configuration conf;
         try {
-        	conf = new Configuration(file);
+        	conf = new Configuration(dbSettingsFile);
         	conf.load();
         } catch (Exception e) {
             log(Level.WARNING, "Failed to retrieve configuration file: "+e);
@@ -74,68 +96,56 @@ public class OnlineLog extends JavaPlugin {
         }
         
         // Load values from it
-    	hostname = conf.getString("hostname");
-    	if (hostname == null) {
-    		log(Level.WARNING, "hostname missing in "+file);
-    		return false;
-    	}
-    	
-    	port = conf.getString("port");
-    	if (hostname == null) {
-    		log(Level.WARNING, "port missing in "+file);
-    		return false;
-    	}
-    	
-    	username = conf.getString("username");
-    	if (hostname == null) {
-    		log(Level.WARNING, "username missing in "+file);
-    		return false;
-    	}
-    	
-    	password = conf.getString("password");
-    	if (hostname == null) {
-    		log(Level.WARNING, "password missing in "+file);
-    		return false;
-    	}
-    	
-    	database = conf.getString("database");
-    	if (hostname == null) {
-    		log(Level.WARNING, "database missing in "+file);
-    		return false;
-    	}
-    	
-    	table = conf.getString("table");
-    	if (hostname == null) {
-    		log(Level.WARNING, "table missing in "+file);
-    		return false;
-    	}
+        for (String key : dbSettings.keySet()) {
+        	dbSettings.put(key, conf.getString(key));
+        	if (dbSettings.get(key) == null) {
+        		log(Level.WARNING, key+" missing in "+dbSettingsFile);
+        		return false;
+        	}
+        }
         
         // Connect to the database
-        String dsn = "jdbc:mysql://" + hostname + ":" + port + "/" + database;
+        String dsn = "jdbc:mysql://" + dbSettings.get("hostname") + ":" + dbSettings.get("port") + "/" + dbSettings.get("database");
         try {
         	Class.forName("com.mysql.jdbc.Driver").newInstance();
         	
-            if(username.equalsIgnoreCase("") && password.equalsIgnoreCase("")) {
+            if(dbSettings.get("username").equalsIgnoreCase("") && dbSettings.get("password").equalsIgnoreCase("")) {
             	conn = DriverManager.getConnection(dsn);	
             } else {
-            	conn = DriverManager.getConnection(dsn, username, password);
+            	conn = DriverManager.getConnection(dsn, dbSettings.get("username"), dbSettings.get("password"));
             }
+            log("Connected to \""+dsn+"\" using table \""+dbSettings.get("table")+"\"");
         } catch (Exception e) {
-            log(Level.WARNING, "Failed to connect to database: "+e);
+            log(Level.WARNING, "DB connection failed: "+e);
             return false;
         }
         
         return true;
 	}
 	
-	public static void doOnlineLog(int playercount) {
+	public static void doOnlineLog(int playercount, String playernames) {
 		try {
 			Statement statement = conn.createStatement();
-			String query = "INSERT INTO `" + table + "` (playercount) VALUES ('"+playercount+"')";
+			String query = "INSERT INTO `" + dbSettings.get("table") + "` (playercount, playernames) VALUES ('"+playercount+"', '"+playernames+"')";
 			statement.executeUpdate(query);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static void logCurrentState() {
+		Player[] onlinePlayers = OnlineLog.instance.getServer().getOnlinePlayers();
+		
+		String playernames = "";
+		
+		if (onlinePlayers.length > 0) {
+			playernames += " ";
+			for (Player player : onlinePlayers) {
+				playernames += player.getName() + " ";
+			}
+		}
+		
+		doOnlineLog(onlinePlayers.length, playernames);
 	}
 	
 	// -------------------------------------------- //
