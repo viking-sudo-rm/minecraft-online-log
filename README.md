@@ -15,12 +15,14 @@ How to install
 * Put OnlineLog.jar in the plugins folder.
 * [Download the mysql driver](http://www.mysql.com/downloads/connector/j/) and put it in your server folder.
 * Create this table:<br>
-<pre>CREATE TABLE IF NOT EXISTS `onlinelog` (
+<pre>CREATE TABLE `onlinelog` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `playercount` smallint(5) unsigned NOT NULL,
   `playernames` varchar(4096) CHARACTER SET ascii NOT NULL,
-  KEY `timestamp` (`timestamp`),
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;</pre>
+  PRIMARY KEY (`id`),
+  KEY `timestamp` (`timestamp`)
+);</pre>
 * Start and stop the server. The plugin will create a default config file.
 * Modify the configuration file.
 
